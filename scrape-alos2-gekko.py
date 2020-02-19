@@ -29,7 +29,7 @@ def main(inps):
         with open(inps.id_check_file) as f:
             completed_dict = json.load(f)
 
-    with open(inps.gmail_acct_json) as f:
+    with open(inps.email_acct_json) as f:
         email_acct = json.load(f)
 
     # get the right smtp server

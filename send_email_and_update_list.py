@@ -7,7 +7,7 @@ from email.mime.multipart import MIMEMultipart
 import smtplib, ssl
 
 # If modifying these scopes, delete the file token.pickle.
-SMTP_SERVERS = {"gmail":"smtp.gmail.com", "ntu.edu": "outlook.office365.com"}
+SMTP_SERVERS = {"gmail":"smtp.gmail.com", "ntu.edu": "smtp.office365.com"}
 # SMTP_PORT = 993
 
 
