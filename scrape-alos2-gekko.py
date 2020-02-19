@@ -120,7 +120,7 @@ def cmdLineParse():
     parser = argparse.ArgumentParser(description='log ratio to fpm')
     parser.add_argument('-a', '--auig2', dest='auig2_credentials_json', type=str,
                         help='json file with auig2 accounts and password', default='auig2_accounts.json')
-    parser.add_argument('-ga','--emailacct', dest='email_acct_json', type=str, default='email_secrets.json',
+    parser.add_argument('-ea','--emailacct', dest='email_acct_json', type=str, default='email_secrets.json',
                         help='json file with email accounts and password' )
     parser.add_argument('-lb', '--lookback', dest='max_lookback', type=int, default=50,
                         help='number of email messages to look back to search for AUIG-2 messages')
