@@ -67,10 +67,11 @@ def main(inps):
             for response_part in data:
                 if isinstance(response_part, tuple):
                     msg = email.message_from_string(response_part[1].decode('utf-8'))
-                    email_subject = msg['subject']
-                    email_from = msg['from']
-                    email_date = msg['date']
+                    email_subject = msg['subject'] if msg['subject'] else "None"
+                    email_from = msg['from'] if msg['from'] else "None"
+                    email_date = msg['date'] if msg['date'] else "None"
                     email_body = get_text(msg)
+                    email_body = email_body if email_body else "None"
                     print('{} | From:{} | Subject: {} '.format(email_date, email_from, email_subject))
                     if (("Please recieve your order" in email_subject) or ("Preparation Complete" in email_subject)) \
                             and 'jaxa' in email_body:
