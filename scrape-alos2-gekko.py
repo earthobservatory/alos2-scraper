@@ -112,13 +112,6 @@ def main(inps):
             print(cmd)
             # sp.check_call(cmd, shell=True) # TODO: bring this back to life later!
 
-            # inps.message_type = 'submit'
-            # inps.message_other = ''
-            # inps.auig2_username = auig2_user['auig2_id']
-            # inps.auig2_order_id = auig2_order_id
-            # send_email_and_update_list.update_and_send(inps)
-
-
 def get_text(msg):
     if msg.is_multipart():
         return get_text(msg.get_payload(0))
