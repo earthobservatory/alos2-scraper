@@ -1,97 +1,87 @@
 #!/usr/bin/env python
 from __future__ import print_function
-import json
-import pickle
+import json, sys
 import re
-import os.path
 import argparse
-import subprocess as sp
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from base64 import urlsafe_b64encode
-from email.mime.text import MIMEText
-# from email.message import EmailMessage
-from email.mime.multipart import MIMEMultipart
-# from apiclient import errors
-import smtplib, ssl
+import email
+import imaplib
+import send_email_and_update_list
+import traceback
+
 
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly']
+SMTP_SERVER = "imap.gmail.com"
+SMTP_PORT   = 993
 
 
-def main(config):
+def main(inps):
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    download_script=config["download_script"]
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                config['credentials_key'], SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
-
-    service = build('gmail', 'v1', credentials=creds)
-
-    # Call the Gmail API
-    results = service.users().labels().list(userId='me').execute()
-    labels = results.get('labels', [])
-    
-    #if not labels:
-    #    print('No labels found.')
-    #else:
-    #    print('Labels:')
-    #    for label in labels:
-    #        print(label['name'])
-
+    download_script=inps.download_script
     # setup to load auig2 stuff
-    with open(config['auig2_accounts']) as f:
+    with open(inps.auig2_credentials_json) as f:
         accounts = json.load(f)["accounts"]
 
     completed_dict = {"completed":[]}
-    if config['completed_ids']:
-        with open(config['completed_ids']) as f:
+    if inps.id_check_file:
+        with open(inps.id_check_file) as f:
             completed_dict = json.load(f)
 
-    with open(config['gmail_acct']) as f:
+    with open(inps.gmail_acct_json) as f:
         gmail_acct = json.load(f)
+
+
+    # results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=config['max_lookback']).execute()
+    # messages = results.get('messages', [])
+
+    try:
+        mail = imaplib.IMAP4_SSL(SMTP_SERVER)
+        mail.login(gmail_acct['email'], gmail_acct['password'])
+        mail.select('inbox')
+        type, data = mail.search(None, 'ALL')
+        mail_ids = data[0]
+
+        id_list = mail_ids.split()
+        if len(id_list) < inps.max_lookback:
+            lookback_ind = 0
+        else:
+            lookback_ind = -inps.max_lookback
+
+        first_email_id = int(id_list[lookback_ind])
+        latest_email_id = int(id_list[-1])
+
+        print("lookback_ind:{}, first_email_id:{}, latest_email_id:{}".format(lookback_ind, first_email_id, latest_email_id))
+
+        order_messages = []
+        for i in range(latest_email_id, first_email_id, -1):
+            typ, data = mail.fetch(str(i), '(RFC822)')
+
+            for response_part in data:
+                if isinstance(response_part, tuple):
+                    msg = email.message_from_string(response_part[1].decode('utf-8'))
+                    email_subject = msg['subject']
+                    email_from = msg['from']
+                    email_date = msg['date']
+                    email_body = get_text(msg)
+                    print('{} | From:{} | Subject: {} '.format(email_date, email_from, email_subject))
+                    if (("Please recieve your order" in email_subject) or ("Preparation Complete" in email_subject)) \
+                            and 'jaxa' in email_body:
+                        order_messages.append(msg)
+
+    except Exception as e:
+        print("Got exception while reading emails: {}".format(str(e)))
+        traceback.print_exc()
+        sys.exit(1)
 
     order_id_regex = re.compile(".*\(order ID: (\d+)\)")
     email_regex = re.compile(".*<(.*)>")
 
-    results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=config['max_lookback']).execute()
-    messages = results.get('messages', [])
-
-
-    order_messages = []
-    print(len(messages))
-    for message in messages:
-        msg = service.users().messages().get(userId='me', id=message['id']).execute()
-        subject = getValueFromHeaderList("Subject", msg)
-        date = getValueFromHeaderList("Date", msg)
-        print("{}: {}".format(date,subject))
-        if (("Please recieve your order" in subject) or ("Providing Preparation Complete" in subject)) and 'jaxa' in msg['snippet']:
-            order_messages.append(msg)
-
-
     for order_msg in order_messages:
-        subject = getValueFromHeaderList("Subject", order_msg)
+        subject = order_msg['subject']
         auig2_order_id = order_id_regex.search(subject).group(1)
-        sender = email_regex.search(getValueFromHeaderList("From", order_msg)).group(1)
+        sender = email_regex.search(order_msg['from']).group(1)
         auig2_user = accounts[sender]
 
         if auig2_order_id not in completed_dict["completed"]:
@@ -100,123 +90,23 @@ def main(config):
             print(msg)
             cmd = "qsub -v o={},u={},p={} {}".format(auig2_order_id,  auig2_user['auig2_id'], auig2_user['auig2_password'], download_script)
             print(cmd)
-            sp.check_call(cmd, shell=True)
-            email_msg = create_message("no-reply@ntu.edu.sg", sender, "[auig2 download] orderid {}".format(auig2_order_id), msg)
-            print("Sending message: %s" % email_msg)
-            send_message_smtp(gmail_acct, sender, email_msg)
+            # sp.check_call(cmd, shell=True) # TODO: bring this back to life later!
 
-def update_completion(config)
-    # to update completed_id json file if specified
-    if config['completed_ids']:
-        with open(config['completed_ids']) as f:
-            completed_dict = json.load(f)
-    
-        completed_dict["completed"].append(auig2_order_id)
-    
-        with open(config['completed_ids'], 'w') as f:
-            json.dump(completed_dict, f, indent=2, sort_keys=True)
-    
-    auig2_order_id = config["order_id"]
-    auig2_user = config["user"]
-    with open(config['auig2_accounts']) as f:
-        accounts = json.load(f)["accounts"]
-
-    for key, value in accounts.items(): 
-         if value["auig2_id"] == auig2_user: 
-             sender = key
-             break
-
-    # to send email notification
-    auig2_order_id = config["auig2_orderid"]
-    auig2_user = config["auig2_id"]
-
-    with open(config['auig2_accounts']) as f:
-        accounts = json.load(f)["accounts"]
-
-    with open(config['gmail_acct']) as f:
-        gmail_acct = json.load(f)
-
-    for key, value in accounts.items():
-         if value["auig2_id"] == auig2_user:
-       	     sender = key
-       	     break 
- 
-    msg = "Gekko download for ORDERID: {} EMAIL: {} AUIG_USERNAME: {} completed. Stored in {}".format(auig2_order_id, sender, auig2_user['auig2_id'], config["alos2_data_location"])
-    print(msg)
-    completed_dict["completed"].append(auig2_order_id)
-    email_msg = create_message("no-reply@ntu.edu.sg", sender, "[auig2 download] orderid {}".format(auig2_order_id), msg)
-    print("Sending message: %s" % email_msg)
-    send_message_smtp(gmail_acct, sender, email_msg)
+            inps.message_type = 'submit'
+            inps.message_other = ''
+            inps.auig2_username = auig2_user['auig2_id']
+            inps.auig2_order_id = auig2_order_id
+            send_email_and_update_list.update_and_send(inps)
 
 
-
-def getValueFromHeaderList(name, msg):
-    for field in msg['payload']['headers']:
-        if field['name'] == name:
-            return field['value']
-
-
-def create_message(sender, to, subject, message_text):
-    """Create a message for an email.
-    Args:
-      sender: Email address of the sender.
-      to: Email address of the receiver.
-      subject: The subject of the email message.
-      message_text: The text of the email message.
-    Returns:
-      An object containing a base64url encoded email object.
-    """
-    message = MIMEMultipart()
-    message["From"] = sender
-    message["To"] = to
-    message["Subject"] = subject
-    message["Bcc"] = sender
-
-    message.attach(MIMEText(message_text, "plain"))
-    return message.as_string()
-
-def send_message(service, user_id, message):
-    """Send an email message.
-
-    Args:
-      service: Authorized Gmail API service instance.
-      user_id: User's email address. The special value "me"
-      can be used to indicate the authenticated user.
-      message: Message to be sent.
-
-    Returns:
-      Sent Message.
-    """
-
-    try:
-        message = (service.users().messages().send(userId=user_id, body=message)
-                   .execute())
-        print('Message Id: %s' % message['id'])
-        return message
-    except Exception as error:
-        print('An error occurred: %s' % error)
+def get_text(msg):
+    if msg.is_multipart():
+        return get_text(msg.get_payload(0))
+    else:
+        return msg.get_payload(None, True).decode('utf-8')
 
 
-def send_message_smtp(sender_email, receiver_email,  message):
-    smtp_server = "smtp.gmail.com"
-    port = 587  # For starttls
-    # Create a secure SSL context
-    context = ssl.create_default_context()
-
-    # Try to log in to server and send email
-    try:
-        server = smtplib.SMTP(smtp_server, port)
-        server.ehlo()  # Can be omitted
-        server.starttls(context=context)  # Secure the connection
-        server.ehlo()  # Can be omitted
-        server.login(sender_email["email"], sender_email["password"])
-        server.sendmail(sender_email["email"], receiver_email, message)
-    except Exception as e:
-        # Print any error messages to stdout
-        print(e)
-    finally:
-        server.quit()
-
+#
 def cmdLineParse():
     '''
     Command line parser.
@@ -224,30 +114,20 @@ def cmdLineParse():
     parser = argparse.ArgumentParser(description='log ratio to fpm')
     parser.add_argument('-a', '--auig2', dest='auig2_credentials_json', type=str,
                         help='json file with auig2 accounts and password', default='auig2_accounts.json')
-    parser.add_argument('-gk', '--gmailkey', dest='credentials_json', type=str, default='credentials.json',
-                        help='json credentials file for this script to access gmail API (not needed if token.pickle is there)')
     parser.add_argument('-ga','--gmailacct', dest='gmail_acct_json', type=str, default='email_secrets.json',
                         help='json file with gmail accounts and password' )
     parser.add_argument('-lb', '--lookback', dest='max_lookback', type=int, default=50,
                         help='number of email messages to look back to search for AUIG-2 messages')
     parser.add_argument('-s','--script', dest='download_script', type=str, default='/home/share/insarscripts/download/auig2_download_unzip/auig2_download_unzip.pbs',
                         help='pbs script to execute' )
-    parser.add_argument('-cid','--completed_ids', dest='completed_ids', type=str, default="",
-                        help='specify json with list of completed ids if check is desired')
-    parser.add_argument('-s',  action='store_true', default=False, dest='do_completion_notify', 
-                        help='Do the update of completed_ids and send a notification after the download is completed. -ga -a -cid options must be valid for this')
+    parser.add_argument('-cid','--completed_ids', dest='id_check_file', type=str, default="",
+                        help='specify json with list of completed ids to check dedups')
     return parser.parse_args()
 
 
 
 if __name__ == '__main__':
     inps = cmdLineParse()
-    config = {'gmail_acct': inps.gmail_acct_json,
-              'credentials_key': inps.credentials_json,
-              'auig2_accounts': inps.auig2_credentials_json,
-              'download_script': inps.download_script,
-              'completed_ids': inps.id_check_file,
-              'max_lookback': inps.max_lookback}
 
-    if 
-    main(config)
+    main(inps)
+
