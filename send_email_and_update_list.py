@@ -56,7 +56,7 @@ def update_and_send(inps):
             break
 
     print(message)
-    email_msg = create_message("no-reply@ntu.edu.sg", send_to_email, "[AUIG2-Gekko] orderid {} update".format(auig2_order_id), message)
+    email_msg = create_message(send_to_email, send_to_email, "[AUIG2-Gekko] orderid {} update".format(auig2_order_id), message)
     print("Sending message: %s" % email_msg)
     send_message_smtp(smtp_server, email_acct, send_to_email, email_msg)
 
