@@ -88,22 +88,20 @@ def main(inps):
 
     order_id_regex = re.compile(".*\(order ID: (\d+)\)")
     email_regex = re.compile(".*<(.*)>")
-    ntu_mail_regex = re.compile("(.*@)(.*)(ntu.edu.sg)")
 
     for order_msg in order_messages:
         subject = order_msg['subject']
         auig2_order_id = order_id_regex.search(subject).group(1)
         sender = email_regex.search(order_msg['from']).group(1)
+        receiver = email_regex.search(order_msg['to']).group(1)
         if sender in accounts.keys():
-            # Check if the sender of the AUIG2 message is an auig2 account holder (he/she fwd the mail)
+            # Check if mail is forwarded. If it is, sender of the message is an auig2 account holder
             auig2_user = accounts[sender]
+        elif receiver in accounts.keys():
+            # Mail is not forwarded,  and might be likely from JAXA, hence use the receiver add as auig2 acct holder.
+            auig2_user = accounts[receiver]
         else:
-            # Sender is not AUIG2 aacount holder (most likely form JAXA), we will use the NTU email account as the regex
-            ntu_mail_match = ntu_mail_regex.search(email_acct['email'])
-            if ntu_mail_match:
-                auig2_user = accounts["{}{}".format(ntu_mail_match.group(1),ntu_mail_match.group(3))]
-            else:
-                raise RuntimeError("Unable to find AUIG-2 user based on email: {}".format(email_acct['email']))
+            raise RuntimeError("Unable to find AUIG-2 user based on: {} or {}".format(sender, receiver))
 
 
         if auig2_order_id not in completed_dict["completed"]:
