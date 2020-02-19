@@ -7,9 +7,9 @@ from email.mime.multipart import MIMEMultipart
 import smtplib, ssl
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/gmail.readonly']
-SMTP_SERVER = "imap.gmail.com"
-SMTP_PORT = 993
+SMTP_SERVERS = {"gmail":"smtp.gmail.com", "ntu.edu": "outlook.office365.com"}
+# SMTP_PORT = 993
+
 
 def update_and_send(inps):
     complete = 'complete' in inps.message_type
@@ -48,12 +48,17 @@ def update_and_send(inps):
                                                                                                            send_to_email,
                                                                                                            inps.message_other)
     with open(inps.gmail_acct_json) as f:
-        gmail_acct = json.load(f)
+        email_acct = json.load(f)
+
+    for key, value in SMTP_SERVERS.items():
+        if key in email_acct["email"]:
+            smtp_server = value
+            break
 
     print(message)
     email_msg = create_message("no-reply@ntu.edu.sg", send_to_email, "[AUIG2-Gekko] orderid {} update".format(auig2_order_id), message)
     print("Sending message: %s" % email_msg)
-    send_message_smtp(gmail_acct, send_to_email, email_msg)
+    send_message_smtp(smtp_server, email_acct, send_to_email, email_msg)
 
 
 
@@ -78,8 +83,7 @@ def create_message(sender, to, subject, message_text):
 
 
 
-def send_message_smtp(sender_email, receiver_email, message):
-    smtp_server = "smtp.gmail.com"
+def send_message_smtp(smtp_server, sender_email, receiver_email, message):
     port = 587  # For starttls
     # Create a secure SSL context
     context = ssl.create_default_context()
@@ -106,7 +110,7 @@ def cmdLineParse():
     parser = argparse.ArgumentParser(description='log ratio to fpm')
     parser.add_argument('-a', '--auig2', dest='auig2_credentials_json', type=str,
                         help='json file with auig2 accounts and password', default='auig2_accounts.json')
-    parser.add_argument('-ga', '--gmailacct', dest='gmail_acct_json', type=str, default='email_secrets.json',
+    parser.add_argument('-ga', '--emailacct', dest='email_acct_json', type=str, default='email_secrets.json',
                         help='json file with gmail accounts and password')
     parser.add_argument('-cid', '--completed_ids', dest='id_check_file', type=str, default="",
                         help='specify json with list of completed ids if check is desired')

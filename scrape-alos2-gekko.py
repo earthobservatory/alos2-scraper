@@ -11,8 +11,8 @@ import traceback
 
 
 # If modifying these scopes, delete the file token.pickle.
-SMTP_SERVER = "imap.gmail.com"
-SMTP_PORT   = 993
+SMTP_SERVERS = {"gmail":"imap.gmail.com", "ntu.edu": "outlook.office365.com"}
+# SMTP_PORT   = 993
 
 
 def main(inps):
@@ -30,15 +30,21 @@ def main(inps):
             completed_dict = json.load(f)
 
     with open(inps.gmail_acct_json) as f:
-        gmail_acct = json.load(f)
+        email_acct = json.load(f)
 
+    # get the right smtp server
+    for key, value in SMTP_SERVERS.items():
+        if key in email_acct["email"]:
+            smtp_server = value
+            break
 
     # results = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=config['max_lookback']).execute()
     # messages = results.get('messages', [])
 
     try:
-        mail = imaplib.IMAP4_SSL(SMTP_SERVER)
-        mail.login(gmail_acct['email'], gmail_acct['password'])
+
+        mail = imaplib.IMAP4_SSL(smtp_server)
+        mail.login(email_acct['email'], email_acct['password'])
         mail.select('inbox')
         type, data = mail.search(None, 'ALL')
         mail_ids = data[0]
@@ -92,11 +98,11 @@ def main(inps):
             print(cmd)
             # sp.check_call(cmd, shell=True) # TODO: bring this back to life later!
 
-            inps.message_type = 'submit'
-            inps.message_other = ''
-            inps.auig2_username = auig2_user['auig2_id']
-            inps.auig2_order_id = auig2_order_id
-            send_email_and_update_list.update_and_send(inps)
+            # inps.message_type = 'submit'
+            # inps.message_other = ''
+            # inps.auig2_username = auig2_user['auig2_id']
+            # inps.auig2_order_id = auig2_order_id
+            # send_email_and_update_list.update_and_send(inps)
 
 
 def get_text(msg):
@@ -114,8 +120,8 @@ def cmdLineParse():
     parser = argparse.ArgumentParser(description='log ratio to fpm')
     parser.add_argument('-a', '--auig2', dest='auig2_credentials_json', type=str,
                         help='json file with auig2 accounts and password', default='auig2_accounts.json')
-    parser.add_argument('-ga','--gmailacct', dest='gmail_acct_json', type=str, default='email_secrets.json',
-                        help='json file with gmail accounts and password' )
+    parser.add_argument('-ga','--emailacct', dest='email_acct_json', type=str, default='email_secrets.json',
+                        help='json file with email accounts and password' )
     parser.add_argument('-lb', '--lookback', dest='max_lookback', type=int, default=50,
                         help='number of email messages to look back to search for AUIG-2 messages')
     parser.add_argument('-s','--script', dest='download_script', type=str, default='/home/share/insarscripts/download/auig2_download_unzip/auig2_download_unzip.pbs',
