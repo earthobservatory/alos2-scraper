@@ -69,14 +69,15 @@ def main(inps):
                     try:
                         msg = email.message_from_string(response_part[1].decode('utf-8'))
                         email_body = get_text(msg)
+                        email_body = email_body if email_body else "None"
                         email_subject = msg['subject'] if msg['subject'] else "None"
                         email_from = msg['from'] if msg['from'] else "None"
                         email_date = msg['date'] if msg['date'] else "None"
+                        email_to = msg['to'] if msg['to'] else "None"
                     except Exception as e:
                         print("Got exception while reading email index {} : {}. \n Continuing..".format(i, str(e)))
 
-                    email_body = email_body if email_body else "None"
-                    print('{} | From:{} | Subject: {} '.format(email_date, email_from, email_subject))
+                    print('{} | From:{} | To: {}| Subject: {} '.format(email_date, email_from, email_to, email_subject))
                     if (("Please recieve your order" in email_subject) or ("Preparation Complete" in email_subject)) \
                             and 'jaxa' in email_body:
                         order_messages.append(msg)
