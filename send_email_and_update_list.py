@@ -47,7 +47,7 @@ def update_and_send(inps):
                                                                                                            auig2_username,
                                                                                                            send_to_email,
                                                                                                            inps.message_other)
-    with open(inps.gmail_acct_json) as f:
+    with open(inps.email_acct_json) as f:
         email_acct = json.load(f)
 
     for key, value in SMTP_SERVERS.items():
