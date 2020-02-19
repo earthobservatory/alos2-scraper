@@ -66,7 +66,11 @@ def main(inps):
 
             for response_part in data:
                 if isinstance(response_part, tuple):
-                    msg = email.message_from_string(response_part[1].decode('utf-8'))
+                    try:
+                        msg = email.message_from_string(response_part[1].decode('utf-8'))
+                    except Exception as e:
+                        print("Got exception while reading email index {} : {}. \n Continuing..".format(i, str(e)))
+
                     email_subject = msg['subject'] if msg['subject'] else "None"
                     email_from = msg['from'] if msg['from'] else "None"
                     email_date = msg['date'] if msg['date'] else "None"
@@ -78,7 +82,6 @@ def main(inps):
                         order_messages.append(msg)
 
     except Exception as e:
-        print("Got exception while reading emails: {}".format(str(e)))
         traceback.print_exc()
         sys.exit(1)
 
