@@ -17,12 +17,15 @@ def update_and_send(inps):
     auig2_username = inps.auig2_username
 
     # Load credentials from auig2
-    with open(inps.auig2_credentials_json) as f:
-        accounts = json.load(f)["accounts"]
+    with open(inps.acct_cred_json) as f:
+        acct_full = json.load(f)
+        auig2_acct=acct_full["auig2_accounts"]
+        email_acct=acct_full["email_account"]
+
 
     # Find which email to send to based on auig2 username
     send_to_email = ''
-    for key, value in accounts.items():
+    for key, value in auig2_acct.items():
         if value["auig2_id"] == auig2_username:
             send_to_email = key
             break
@@ -47,8 +50,6 @@ def update_and_send(inps):
                                                                                                            auig2_username,
                                                                                                            send_to_email,
                                                                                                            inps.message_other)
-    with open(inps.email_acct_json) as f:
-        email_acct = json.load(f)
 
     for key, value in SMTP_SERVERS.items():
         if key in email_acct["email"]:
@@ -107,11 +108,9 @@ def cmdLineParse():
     '''
     Command line parser.
     '''
-    parser = argparse.ArgumentParser(description='log ratio to fpm')
-    parser.add_argument('-a', '--auig2', dest='auig2_credentials_json', type=str,
-                        help='json file with auig2 accounts and password', default='auig2_accounts.json')
-    parser.add_argument('-ea', '--emailacct', dest='email_acct_json', type=str, default='email_secrets.json',
-                        help='json file with gmail accounts and password')
+    parser = argparse.ArgumentParser(description='sends emails to notify users about status of auig2 download')
+    parser.add_argument('-a', '--acct', dest='acct_cred_json', type=str,
+                        help='json file with auig2 accounts, password and target email account', default='credentials.json')
     parser.add_argument('-cid', '--completed_ids', dest='id_check_file', type=str, default="",
                         help='specify json with list of completed ids if check is desired')
     parser.add_argument('-mt', '--message_type', dest='message_type', type=str, default="submit",
