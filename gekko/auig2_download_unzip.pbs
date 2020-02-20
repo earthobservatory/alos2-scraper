@@ -1,0 +1,36 @@
+#!/bin/bash
+### Set job parameters
+#PBS -N auig2_scraper_download_unzip
+#PBS -P eos_ehill
+#PBS -l walltime=120:00:00
+#PBS -l select=1:ncpus=1
+#PBS -m bea
+
+# unused pbs options:
+# specify queue name:
+# #PBS -q q32
+# specify notification email:
+# #PBS -M elindsey@ntu.edu.sg
+
+module purge
+module load python/3/intel/2020
+
+echo $o $u $p $cred $cid
+
+script_dir="/home/share/insarscripts/download/alos2-scraper/gekko"
+now=`date +%Y%m%d_%H%M%S`
+cd $script_dir/download_stage
+
+mkdir -p $script_dir/log
+logfile=$script_dir/log/auig2_download_unzip_${o}_$now.log
+cmd="$script_dir/auig2_download_unzip.sh $o $u $p $cred $cid  &> $logfile"
+echo $cmd
+if `eval $cmd`; then
+  echo yay
+else
+  echo nay
+  msg="Gekko job failed, job_id: $PBS_JOBID check logs at: $logfile"
+  cmd="$script_dir/send_email_and_update_list.py -o $o -u $u -a $cred -mt submit -mo '$msg'"
+  echo $cmd
+  eval $cmd
+fi

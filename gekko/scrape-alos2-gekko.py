@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import print_function
-import json, sys
+import json, sys, os
+import subprocess as sp
 import re
 import argparse
 import email
@@ -19,17 +20,22 @@ def main(inps):
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
-    download_script=inps.download_script
     # setup to load auig2 stuff
-    with open(inps.acct_cred_json) as f:
-        all_accts = json.load(f)["auig2_accounts"]
+    pbs_script=os.path.abspath(inps.pbs_script)
+    cred_file=os.path.abspath(inps.acct_cred_json)
+
+    with open(cred_file) as f:
+        all_accts = json.load(f)
         auig2_acct = all_accts["auig2_accounts"]
-        email_acct = all_accts["email_acccount"]
+        email_acct = all_accts["email_account"]
 
     completed_dict = {"completed":[]}
     if inps.id_check_file:
-        with open(inps.id_check_file) as f:
+        cid_file=os.path.abspath(inps.id_check_file)
+        with open(cid_file) as f:
             completed_dict = json.load(f)
+    else:
+        cid_file=''
 
     # get the right smtp server
     for key, value in SMTP_SERVERS.items():
@@ -107,9 +113,9 @@ def main(inps):
             # we need to executing download
             msg = "Executing gekko download for ORDERID: {} EMAIL: {} AUIG_USERNAME: {}".format(auig2_order_id, sender, auig2_user['auig2_id'])
             print(msg)
-            cmd = "qsub -v o={},u={},p={} {}".format(auig2_order_id,  auig2_user['auig2_id'], auig2_user['auig2_password'], download_script)
+            cmd = "qsub -v o={},u={},p={},cred={},cid={} {}".format(auig2_order_id,  auig2_user['auig2_id'], auig2_user['auig2_password'], cred_file, cid_file, pbs_script)
             print(cmd)
-            # sp.check_call(cmd, shell=True) # TODO: bring this back to life later!
+            sp.check_call(cmd, shell=True)
 
 def get_text(msg):
     if msg.is_multipart():
@@ -128,8 +134,8 @@ def cmdLineParse():
                         help='json file with auig2 accounts, password and target email account', default='credentials.json')
     parser.add_argument('-lb', '--lookback', dest='max_lookback', type=int, default=50,
                         help='number of email messages to look back to search for AUIG-2 messages')
-    parser.add_argument('-s','--script', dest='download_script', type=str, default='/home/share/insarscripts/download/auig2_download_unzip/auig2_download_unzip.pbs',
-                        help='pbs script to execute' )
+    parser.add_argument('-s','--script', dest='pbs_script', type=str, default='/home/share/insarscripts/download/auig2_download_unzip/auig2_download_unzip.pbs',
+                        help='pbs script to execute' )    
     parser.add_argument('-cid','--completed_ids', dest='id_check_file', type=str, default="",
                         help='specify json with list of completed ids to check dedups')
     return parser.parse_args()
