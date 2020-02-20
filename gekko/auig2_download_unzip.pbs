@@ -22,7 +22,7 @@ now=`date +%Y%m%d_%H%M%S`
 cd $script_dir/download_stage
 
 mkdir -p $script_dir/log
-logfile=$script_dir/log/auig2_download_unzip_${o}_$now.log
+logfile=$script_dir/log/auig2_download_unzip_${o}_$now_$PBS_JOBID.log
 cmd="$script_dir/auig2_download_unzip.sh $o $u $p $cred $cid  &> $logfile"
 echo $cmd
 if `eval $cmd`; then

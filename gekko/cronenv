@@ -1,1 +1,2 @@
-export PATH=/usr/local/intel/2020/intelpython3/bin/:$PATH
+#!/bin/bash
+export PATH=/opt/pbs/bin/:/usr/local/intel/2020/intelpython3/bin/:$PATH
