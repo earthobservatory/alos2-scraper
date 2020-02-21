@@ -96,26 +96,28 @@ def main(inps):
 
     for order_msg in order_messages:
         subject = order_msg['subject']
-        auig2_order_id = order_id_regex.search(subject).group(1)
-        sender = email_regex.search(order_msg['from']).group(1)
-        receiver = email_regex.search(order_msg['to']).group(1)
-        if sender in auig2_acct.keys():
-            # Check if mail is forwarded. If it is, sender of the message is an auig2 account holder
-            auig2_user = auig2_acct[sender]
-        elif receiver in auig2_acct.keys():
-            # Mail is not forwarded,  and might be likely from JAXA, hence use the receiver add as auig2 acct holder.
-            auig2_user = auig2_acct[receiver]
-        else:
-            raise RuntimeError("Unable to find AUIG-2 user based on: {} or {}".format(sender, receiver))
+        subj_match=order_id_regex.search(subject)
+        if subj_match:
+            auig2_order_id = subj_match.group(1)
+            sender = email_regex.search(order_msg['from']).group(1)
+            receiver = email_regex.search(order_msg['to']).group(1)
+            if sender in auig2_acct.keys():
+                # Check if mail is forwarded. If it is, sender of the message is an auig2 account holder
+                auig2_user = auig2_acct[sender]
+            elif receiver in auig2_acct.keys():
+                # Mail is not forwarded,  and might be likely from JAXA, hence use the receiver add as auig2 acct holder.
+                auig2_user = auig2_acct[receiver]
+            else:
+                raise RuntimeError("Unable to find AUIG-2 user based on: {} or {}".format(sender, receiver))
 
 
-        if auig2_order_id not in completed_dict["completed"]:
-            # we need to executing download
-            msg = "Executing gekko download for ORDERID: {} EMAIL: {} AUIG_USERNAME: {}".format(auig2_order_id, sender, auig2_user['auig2_id'])
-            print(msg)
-            cmd = "qsub -v o={},u={},p={},cred={},cid={} {}".format(auig2_order_id,  auig2_user['auig2_id'], auig2_user['auig2_password'], cred_file, cid_file, pbs_script)
-            print(cmd)
-            sp.check_call(cmd, shell=True)
+            if auig2_order_id not in completed_dict["completed"]:
+                # we need to executing download
+                msg = "Executing gekko download for ORDERID: {} EMAIL: {} AUIG_USERNAME: {}".format(auig2_order_id, sender, auig2_user['auig2_id'])
+                print(msg)
+                cmd = "qsub -v o={},u={},p={},cred={},cid={} {}".format(auig2_order_id,  auig2_user['auig2_id'], auig2_user['auig2_password'], cred_file, cid_file, pbs_script)
+                print(cmd)
+                sp.check_call(cmd, shell=True)
 
 def get_text(msg):
     if msg.is_multipart():

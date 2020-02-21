@@ -94,8 +94,9 @@ def download(inps):
     url = "http://auig2.jaxa.jp/pp/service/download?downloadurl=/start/download/file&itemname=%s&itemtype=1" % inps.order_id
     f = opener.open(url)
     print("Downloading from url: %s " % url)
-    print("Header reply: %s " % f.headers['Content-Disposition'])
-    filename = f.headers['Content-Disposition'].split("=")[-1].strip()
+    f_content = f.headers['Content-Disposition']
+    print("Header reply: %s " % f_content)
+    filename = f_content.split("=")[-1].strip() if f_content else ""
     print("ALOS-2 AUIG2 Download:", filename)
     start = time.time()
     CHUNK = 256 * 1024
