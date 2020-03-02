@@ -74,13 +74,13 @@ rm -f $file2
 mv summary.txt ${file2}.summary.txt
 
 # move the unzipped data to the P/F folder
-mkdir -p $extractpath/$path/$frame
-mv * $extractpath/$path/$frame
+mkdir -p $EXTRACTPATH/$path/$frame
+mv * $EXTRACTPATH/$path/$frame
 cd ..
 rm -rf temp_$file
 
 #send email too say download and unzip is completed
-msg="Download job ID in Gekko: $PBS_JOBID has completed. $file2 has been extracted into $extractpath/$path/$frame/"
+msg="Download job ID in Gekko: $PBS_JOBID has completed. $file2 has been extracted into $EXTRACTPATH/$path/$frame/"
 cmd="$EMAIL_SCRIPT -o $order -u $username  -a $credentials_json -cid '$completed_id_json' -mt complete -mo '$msg'"
 echo $cmd
 eval $cmd

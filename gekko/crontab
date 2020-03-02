@@ -1,0 +1,2 @@
+25 */6 * * * source /home/share/insarscripts/download/alos2-scraper/gekko/cronenv && /home/share/insarscripts/download/alos2-scraper/gekko/scrape-alos2-gekko.py -a /home/share/insarscripts/download/alos2-scraper/gekko/credentials.json -lb 50 -s /home/share/insarscripts/download/alos2-scraper/gekko/auig2_download_unzip.pbs -cid /home/share/insarscripts/download/alos2-scraper/gekko/completed_ids.json &> /home/share/insarscripts/download/alos2-scraper/gekko/log/run.log
+

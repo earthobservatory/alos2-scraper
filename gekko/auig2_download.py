@@ -104,20 +104,22 @@ def download(inps):
     filesize = f.getheader("Content-Length")
     print("Content-Length: %s" % filesize)
     count = 0
-
-    with open(filename, 'wb') as fp:
-        while True:
-            count += 1
-            chunk = f.read(CHUNK)
-            if not chunk: break
-            fp.write(chunk)
-            if not count % 20:
-                print("Wrote %s chunks: %s MB " % (count, str(count * CHUNK / (1024 * 1024))))
-    f.close()
-    total_time = time.time() - start
-    mb_sec = (os.path.getsize(filename) / (1024 * 1024.0)) / total_time
-    print("Speed: %s MB/s" % mb_sec)
-    print("Total Time: %s s" % total_time)
+    if not os.path.exists(filename):
+        with open(filename, 'wb') as fp:
+            while True:
+                count += 1
+                chunk = f.read(CHUNK)
+                if not chunk: break
+                fp.write(chunk)
+                if not count % 20:
+                    print("Wrote %s chunks: %s MB " % (count, str(count * CHUNK / (1024 * 1024))))
+        f.close()
+        total_time = time.time() - start
+        mb_sec = (os.path.getsize(filename) / (1024 * 1024.0)) / total_time
+        print("Speed: %s MB/s" % mb_sec)
+        print("Total Time: %s s" % total_time)
+    else:
+        raise RuntimeError("{} already exists! Not overwriting it!".format(filename))
 
     return url
 
